@@ -1,21 +1,22 @@
 # Memanggil paket ----
 library(shiny)
-library(tidyverse)
-library(gridExtra)
+library(ggplot2)
 
 # Mendefinisikan UI ----
-ui <- shinyUI(fluidPage(
-  title = "Demonstrasi Teorema Limit Pusat -- Aplikasi Shiny",
+ui <- fluidPage(
+  title = "Demonstrasi Cakupan Selang Kepercayaan -- Aplikasi Shiny",
   navbarPage("Cakupan Selang Kepercayaan",
              position = "static-top",
              ## Tab proporsi ----
              tabPanel("Proporsi",
                       sidebarPanel(
                         wellPanel(
+                          ### Memilih proporsi populasi ----
                           sliderInput("p_prop", "Proporsi populasi:",
                                       0.5, min = 0, max = 1, step = 0.01)
                         ),
                         wellPanel(
+                          ### Memilih tingkat kepercayaan SK proporsi ----
                           selectInput("tingkat_keper_prop",
                                       "Tingkat kepercayaan:",
                                       choices = c("90%" = "0.90",
@@ -24,14 +25,17 @@ ui <- shinyUI(fluidPage(
                                       selected = "0.95")
                         ),
                         wellPanel(
+                          ### Memilih ukuran sampel proporsi ----
                           sliderInput("n_prop", "Ukuran sampel:",
                                       30, min = 10, max = 100, step = 5),
+                          ### Memilih banyak sampel proporsi ----
                           sliderInput("k_prop", "Banyak sampel:",
                                       20, min = 10, max = 500, step = 10)
                         )
                       ),
                       mainPanel(
-                        plotOutput("plot_cakupan_prop"),
+                        plotOutput("plot_cakupan_prop",
+                                   height = "450px"),
                         textOutput("teks_cakupan_prop")
                       )
              ),
@@ -40,125 +44,89 @@ ui <- shinyUI(fluidPage(
                       sidebarLayout(
                         sidebarPanel(
                           wellPanel(
-                            ### Memilih distribusi ----
-                            radioButtons("dist", "Distribusi populasi:",
-                                         c("Normal" = "rnorm",
-                                           "Seragam" = "runif",
-                                           "Condong ke kanan" = "rlnorm",
-                                           "Condong ke kiri" = "rbeta",
-                                           "Puncak ganda" = "rnorm2"),
-                                         selected = "rnorm"),
-                            hr(),
-                            ### Parameter distribusi ----
-                            uiOutput("mu"),
-                            uiOutput("sd"),
-                            uiOutput("minmax"),
-                            uiOutput("skew"),
-                            uiOutput("shape")
-                          ),
+                            ### Memilih tingkat kepercayaan SK rerata ----
+                            radioButtons("sigma_rrt",
+                                         "Sigma diketahui:",
+                                         choices = c("Ya", "Tidak"),
+                                         selected = "Tidak",
+                                         inline = TRUE)
+                            ),
                           wellPanel(
                             selectInput("tingkat_keper_rrt",
                                         "Tingkat kepercayaan:",
                                         choices = c("90%" = "0.9",
                                                     "95%" = "0.95",
                                                     "99%" = "0.99"),
-                                        selected = "95%")
-                          ),
+                                        selected = "0.95")
+                            ),
                           wellPanel(
                             ### Memilih ukuran sampel ----
                             sliderInput("n_rrt",
                                         "Ukuran sampel:", 
                                         value = 30,
                                         min = 2,
-                                        max = 500),
+                                        max = 100),
                             hr(),
                             ### Menentukan banyak sampel ----
                             sliderInput("k_rrt",
                                         "Banyaknya sampel:",
-                                        value = 200,
+                                        value = 20,
                                         min = 10,
-                                        max = 1000)
+                                        max = 500,
+                                        step = 10)
                           )
                         ),
                         mainPanel(
-                          tabsetPanel(
-                            type = "tabs",
-                            ### Tab cakupan SK ----
-                            tabPanel(title = "Cakupan SK",
-                                     br(),
-                                     plotOutput("plot_cakupan_rrt",
-                                                height = "500px"),
-                                     br()
-                            ),
-                            ### Tab beberapa sampel ----
-                            tabPanel(title = "Beberapa Sampel",
-                                     br(),
-                                     plotOutput("sample.dist.rrt"),
-                                     br(),
-                                     div(h4(textOutput("num.samples.rrt")),
-                                         align = "center"),
-                            ),
-                            ### Tab distribusi sampling ----
-                            tabPanel(title = "Distribusi Sampling",
-                                     fluidRow(
-                                       column(width = 12,
-                                              br(),
-                                              plotOutput("sampling.dist.rrt"),
-                                              div(textOutput("sampling.descr.rrt",
-                                                             inline = TRUE),
-                                                  align = "center"))
-                                     )
-                            )
+                          ### Plot output rerata ----
+                          plotOutput("plot_cakupan_rrt",
+                                     height = "450px")
                           )
                         )
-                      )
-             ),
+                      ),
              ## Tab informasi ----
              tabPanel("Informasi",
                       sidebarLayout(
                         sidebarPanel(
                           wellPanel(
                             div(h4("Deskripsi",
-                                   style = "font-size: inherit;
-                                   font-weight: bold")),
-                            div(p("Aplikasi Shiny ini digunakan untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata."))
-                          ),
-                          wellPanel(
-                            div(h4("Kode sumber",
-                                   style = "font-size: inherit;
-                                   font-weight: bold")),
-                            div(p("Kode sumber aplikasi ini tersedia di repositori", a("Github.", href = "https://github.com/ydkristanto/apl-tlp", target = "_blank"), "Jika Anda ingin melaporkan masalah atau meminta fitur tambahan terhadap aplikasi ini, silakan", a("buat sebuah isu", href = "https://github.com/ydkristanto/apl-tlp/issues", target = "_blank"), "atau lebih baik lagi", a("minta penarikan", href = "https://github.com/ydkristanto/apl-tlp/pulls", target = "_blank"), "di repositori tersebut."))
-                          ),
-                          wellPanel(
-                            div(h4("Lisensi",
-                                   style = "font-size: inherit;
-                                   font-weight: bold")),
-                            div(p("Lisensi MIT"),
-                                p("Copyright (c) 2024 Yosep Dwi Kristanto"))
-                          )
-                        ),
-                        mainPanel(
-                          div(h3("Aplikasi Shiny Teorema Limit Pusat")),
-                          div(p("Tujuan aplikasi interaktif ini adalah untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata satu populasi. Beberapa ide penting statistik ditunjukkan oleh aplikasi ini. Ide-ide penting tersebut antara lain adalah sebagai berikut."), align = "justify"),
-                          div(tags$ul(tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling proporsinya mendekati normal."),
-                                      tags$li("Distribusi sampling proporsi tersebut memiliki rerata sama dengan proporsi populasinya dan simpangan bakunya sama dengan akar kuadrat dari hasil kali antara proporsi populasi dan satu dikurangi proporsi tersebut kemudian dibagi dengan ukuran sampel."),
-                                      tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling reratanya mendekati normal."),
-                                      tags$li("Untuk sampel yang berukuran kecil, distribusi sampling reratanya mendekati normal jika populasi dari sampel tersebut berdistribusi normal."),
-                                      tags$li("Distribusi sampling rerata tersebut memiliki rerata yang sama dengan rerata populasinya dan simpangan baku yang sama dengan simpangan baku populasi dibagi dengan akar kuadrat ukuran sampel.")), align = "justify"),
-                          hr(),
-                          div(p("Aplikasi interaktif ini dikembangkan dengan menggunakan bahasa pemrogram", a("R", href = "https://www.R-project.org/", target = "_blank"), "dan paket", a("Shiny.", href = "https://CRAN.R-project.org/package=shiny", target = "_blank"), "Paket", a("shinylive", href = "https://posit-dev.github.io/r-shinylive/", target = "_blank"), "digunakan untuk mengekspor aplikasi ini agar dapat dijalankan di peramban web tanpa peladen R yang terpisah."), align = "justify"),
-                          div(p("Pengembang dan pemelihara aplikasi ini adalah", a("Yosep Dwi Kristanto,", href = "https://people.usd.ac.id/~ydkristanto/", target = "_blank"), "seorang dosen dan peneliti di program studi", a("Pendidikan Matematika,", href = "https://usd.ac.id/s1pmat", target = "_blank"), a("Universitas Sanata Dharma,", href = "https://www.usd.ac.id/", target = "_blank"), "Yogyakarta. Aplikasi ini merupakan modifikasi dari aplikasi-aplikasi interaktif", a("ShinyEd", href = "https://github.com/ShinyEd/intro-stats/", target = "_blank"), "yang dikembangkan oleh Mine Çetinkaya-Rundel dkk."), align = "justify"),
-                          width = 6
-                        )
-                      )
-             )
-  )
-)
-)
+                             style = "font-size: inherit;
+                             font-weight: bold")),
+                             div(p("Aplikasi Shiny ini digunakan untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata."))
+                             ),
+                           wellPanel(
+                             div(h4("Kode sumber",
+                             style = "font-size: inherit;
+                             font-weight: bold")),
+                             div(p("Kode sumber aplikasi ini tersedia di repositori", a("Github.", href = "https://github.com/ydkristanto/apl-tlp", target = "_blank"), "Jika Anda ingin melaporkan masalah atau meminta fitur tambahan terhadap aplikasi ini, silakan", a("buat sebuah isu", href = "https://github.com/ydkristanto/apl-tlp/issues", target = "_blank"), "atau lebih baik lagi", a("minta penarikan", href = "https://github.com/ydkristanto/apl-tlp/pulls", target = "_blank"), "di repositori tersebut."))
+                             ),
+                           wellPanel(
+                             div(h4("Lisensi",
+                             style = "font-size: inherit;
+                             font-weight: bold")),
+                             div(p("Lisensi MIT"),
+                                 p("Copyright (c) 2024 Yosep Dwi Kristanto"))
+                             )
+                           ),
+                         mainPanel(
+                           div(h3("Aplikasi Shiny Teorema Limit Pusat")),
+                           div(p("Tujuan aplikasi interaktif ini adalah untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata satu populasi. Beberapa ide penting statistik ditunjukkan oleh aplikasi ini. Ide-ide penting tersebut antara lain adalah sebagai berikut."), align = "justify"),
+                           div(tags$ul(tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling proporsinya mendekati normal."),
+                                       tags$li("Distribusi sampling proporsi tersebut memiliki rerata sama dengan proporsi populasinya dan simpangan bakunya sama dengan akar kuadrat dari hasil kali antara proporsi populasi dan satu dikurangi proporsi tersebut kemudian dibagi dengan ukuran sampel."),
+                                       tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling reratanya mendekati normal."),
+                                       tags$li("Untuk sampel yang berukuran kecil, distribusi sampling reratanya mendekati normal jika populasi dari sampel tersebut berdistribusi normal."),
+                                       tags$li("Distribusi sampling rerata tersebut memiliki rerata yang sama dengan rerata populasinya dan simpangan baku yang sama dengan simpangan baku populasi dibagi dengan akar kuadrat ukuran sampel.")), align = "justify"),
+                           hr(),
+                           div(p("Aplikasi interaktif ini dikembangkan dengan menggunakan bahasa pemrogram", a("R", href = "https://www.R-project.org/", target = "_blank"), "dan paket", a("Shiny.", href = "https://CRAN.R-project.org/package=shiny", target = "_blank"), "Paket", a("shinylive", href = "https://posit-dev.github.io/r-shinylive/", target = "_blank"), "digunakan untuk mengekspor aplikasi ini agar dapat dijalankan di peramban web tanpa peladen R yang terpisah."), align = "justify"),
+                           div(p("Pengembang dan pemelihara aplikasi ini adalah", a("Yosep Dwi Kristanto,", href = "https://people.usd.ac.id/~ydkristanto/", target = "_blank"), "seorang dosen dan peneliti di program studi", a("Pendidikan Matematika,", href = "https://usd.ac.id/s1pmat", target = "_blank"), a("Universitas Sanata Dharma,", href = "https://www.usd.ac.id/", target = "_blank"), "Yogyakarta. Aplikasi ini merupakan modifikasi dari aplikasi-aplikasi interaktif", a("ShinyEd", href = "https://github.com/ShinyEd/intro-stats/", target = "_blank"), "yang dikembangkan oleh Mine Çetinkaya-Rundel dkk."), align = "justify"),
+                  width = 6)
+                  )
+                  )
+              )
+     )
 
 # Fungsi peladen ----
 seed = as.numeric(Sys.time())
-server <- shinyServer(function(input, output) {
+server <- function(input, output) {
   ## Fungsi untuk proporsi ----
   ## Fungsi untuk membuat data dan menentukan selang kepercayaan
   membuat_data <- function(p, n_prop, k_prop, tk_prop) {
@@ -221,433 +189,69 @@ server <- shinyServer(function(input, output) {
     paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(persen_mencakup, 2), "%", sep = "")
   })
   ## Fungsi untuk rerata ----
-  ### Slider rerata untuk distribusi normal ----
-  output$mu = renderUI(
-    {
-      if (input$dist == "rnorm")
-      {
-        sliderInput("mu",
-                    "Rerata:",
-                    value = 0,
-                    min = -40,
-                    max = 50)
-      }
-    })
+  # Tetapkan parameter populasi
+  mean_populasi <- 500
+  sd_populasi <- 100
   
-  ### Slider simpangan baku untuk distribusi normal ----
-  output$sd = renderUI(
-    {
-      if (input$dist == "rnorm")
-      {
-        sliderInput("sd",
-                    "Simpangan baku:",
-                    value = 20,
-                    min = 1,
-                    max = 30)
-      }
-    })
-  
-  ### Slider minmaks untuk distribusi seragam ----
-  output$minmax = renderUI(
-    {
-      
-      if (input$dist == "runif")
-      {
-        sliderInput("minmax",
-                    "Batas bawah dan batas atas",
-                    value = c(5, 15),
-                    min = 0,
-                    max = 20)
-      }
-    })
-  
-  ### Memastikan jangkauan untuk distribusi seragam != 0 ----
-  observeEvent(input$minmax, {
-    
-    req(input$minmax)
-    
-    if (input$minmax[1] == input$minmax[2]){
-      if (input$minmax[1] == 0){
-        updateSliderInput(session, "minmax", value = c(0, 1))
-      } else if (input$minmax[2] == 20){
-        updateSliderInput(session, "minmax", value = c(19, 20))
+  # Fungsi untuk menghasilkan data dan menghitung selang kepercayaan
+  hasilkan_data <- function(n, k, tk, sigma) {
+    data_sk <- lapply(1:k, function(i) {
+      sampel <- rnorm(n, mean = 500, sd = 100)
+      rerata_sampel <- mean(sampel)
+      if (sigma == "Ya") {
+        selang_kepercayaan <- qnorm(c(0.5 - as.numeric(tk)/2,
+                                      0.5 + as.numeric(tk)/2),
+                                    mean = rerata_sampel,
+                                    sd = 100 / sqrt(n))
       } else {
-        updateSliderInput(session, "minmax", value = c(input$minmax[2], input$minmax[2] + 1))
+        selang_kepercayaan <- t.test(sampel,
+                                     conf.level = as.numeric(tk))$conf.int
       }
-    }
-  })
-  
-  ### Slider kecondongan untuk rlnorm dan rbeta ----
-  output$skew = renderUI(
-    {
       
-      if (input$dist == "rlnorm" | input$dist == "rbeta"){
-        selectInput(inputId = "skew",
-                    label = "Kecondongan:",
-                    choices = c("Rendah" = "low",
-                                "Sedang" = "med",
-                                "Tinggi" = "high"),
-                    selected = "low")
-      }
-    })
-  
-  ### Pilihan bentuk untuk rnorm2 ----
-  output$shape = renderUI(
-    {
+      # Periksa apakah selang kepercayaan mencakup rerata populasi
+      mencakup_rrt_populasi <- selang_kepercayaan[1] <= 500 &&
+        selang_kepercayaan[2] >= 500
       
-      if (input$dist == "rnorm2"){
-        selectInput(inputId = "shape",
-                    label = "Bentuk:",
-                    choices = c("Bentuk 1" = "shape1",
-                                "Bentuk 2" = "shape2",
-                                "Bentuk 3" = "shape3"),
-                    selected = "shape1")
-      }
-    })
-  
-  ### Membuat sampel-sampel random ----
-  # Mendefinisikan fungsi untuk distribusi puncak ganda
-  rnorm2 <- function(n, mu1, mu2, sd){
-    return(c(rnorm(n = round(2/5*n), mean = mu1, sd = sd),
-      rnorm(n = n - round(2/5*n), mean = mu2, sd = sd)))
-  }
-  rand_draw_rrt <- function(dist, n, mu, sd, min, max, skew, shape){
-    
-    vals = NULL
-    
-    if (dist == "rbeta"){
-      req(skew)
-      if (skew == "low"){
-        vals = do.call(dist, list(n = n, shape1 = 5, shape2 = 2))
-      }
-      else if (skew == "med"){
-        vals = do.call(dist, list(n = n, shape1 = 5, shape2 = 1.5))
-      }
-      else if (skew == "high"){
-        vals = do.call(dist, list(n = n, shape1 = 5, shape2 = 1)) 
-      }
-    }
-    
-    else if (dist == "rnorm"){
-      req(mu, sd)
-      vals = do.call(dist, list(n = n, mean = mu, sd = sd))
-    }
-    
-    else if (dist == "rlnorm"){
-      req(skew)
-      if (skew == "low"){
-        vals = do.call(dist, list(n = n, meanlog = 0, sdlog = .25))
-      }
-      else if (skew == "med"){
-        vals = do.call(dist, list(n = n, meanlog = 0, sdlog =.5))
-      }
-      else if (skew == "high"){
-        vals = do.call(dist, list(n = n, meanlog = 0, sdlog = 1))
-      }
-    }
-    
-    else if (dist == "runif"){
-      req(min, max)
-      vals = do.call(dist, list(n = n, min = min, max = max))
-    }
-    else if (dist == "rnorm2"){
-      req(shape)
-      if (shape == "shape1"){
-        vals = do.call(dist, list(n = n, mu1 = 30, mu2 = 70, sd = 8))
-      }
-      else if (shape == "shape2"){
-        vals = do.call(dist, list(n = n, mu1 = 70, mu2 = 30, sd = 10))
-      }
-      else if (shape == "shape3"){
-        vals = do.call(dist, list(n = n, mu1 = 30, mu2 = 70, sd = 12))
-      }
-    }
-    return(vals)
-  }
-  
-  rep_rand_draw_rrt = repeatable(rand_draw_rrt)
-  
-  ### Mendefinisikan beberapa variabel reaktif lainnya ----
-  u_min = reactive({
-    req(input$minmax)
-    return(input$minmax[1])
-  })
-  u_max = reactive({
-    req(input$minmax)
-    return(input$minmax[2])
-  })
-  n_pop_rrt  <-  1e5
-  pop_rrt <- rep_rand_draw_rrt(dist, n_pop_rrt, mu, sd, min,
-                               max, skew, shape)
-  membuat_data_rrt <- function(n_rrt, k_rrt, tk_rrt) {
-    data_sk <- lapply(1:k_rrt, function(i) {
-      
-      set_sampel <- replicate(k_rrt, sample(pop_rrt, n_rrt, replace = TRUE))
-      sampel <- set_sampel[, i]
-      t_test <- t.test(sampel, conf.level = tk_rrt)
-      sk <- t_test$conf.int
-      rerata <- mean(sampel)
-      mencakup_p <- p >= sk[1] && p <= sk[2]
-      data.frame(x = i, xend = i, y = sk[1], yend = sk[2],
-                 mencakup_p = mencakup_p, rerata = rerata)
+      data.frame(x = i, xend = i, y = selang_kepercayaan[1],
+                 yend = selang_kepercayaan[2], rerata = rerata_sampel,
+                 mencakup_rrt_populasi = mencakup_rrt_populasi)
     })
     return(data_sk)
   }
-  ### Plot SK rerata ----
+  rep_hasilkan_data <- repeatable(hasilkan_data)
+  
+  ### Plot selang kepercayaan rerata ----
   output$plot_cakupan_rrt <- renderPlot({
-    data_sk <- membuat_data_rrt(input$n_rrt,
-                                input$k_rrt, input$tingkat_keper_rrt)
-    mu_rrt = mean(parent_rrt)
-    sd_rrt = sd(parent_rrt)
+    data_sk <- rep_hasilkan_data(input$n_rrt, input$k_rrt,
+                                 input$tingkat_keper_rrt,
+                                 input$sigma_rrt)
     
     ggplot() +
       geom_segment(data = do.call(rbind, data_sk),
                    aes(x = x, xend = xend, y = y, yend = yend,
-                       color = factor(mencakup_p)),
-                   linewidth = 1,
+                       color = factor(mencakup_rrt_populasi)),
+                   size = 1,
                    alpha = .6) +
       geom_point(data = do.call(rbind, data_sk),
                  aes(x = x, y = rerata,
-                     color = factor(mencakup_p)),
+                     color = factor(mencakup_rrt_populasi)),
                  size = 2) +
-      geom_hline(yintercept = mu_rrt, linetype = "dashed",
-                 color = "black", linewidth = 1) +
-      scale_color_manual(values = c("FALSE" = "#d95f02",
-                                    "TRUE" = "#1b9e77"),
-                         name = "Mencakup p?",
-                         labels = c("FALSE" = "Tidak",
-                                    "TRUE" = "Ya")) +
-      labs(title = "Cakupan selang kepercayaan proporsi",
-           y = "Proporsi") +
+      geom_hline(yintercept = 500, linetype = "dashed",
+                 linewidth = 1) +
+      scale_color_manual(name = "Mencakup mu?",
+                         values = c("TRUE" = "#1b9e77",
+                                    "FALSE" = "#d95f02"),
+                         labels = c("TRUE" = "Ya",
+                                    "FALSE" = "Tidak")) +
+      labs(title = "Cakupan selang kepercayaan rerata",
+           x = "Nomor Sampel", y = "Nilai") +
       theme_bw(base_size = 16) +
-      theme(axis.title.x = element_blank(),
+      theme(legend.position = "bottom",
+            axis.title.x = element_blank(),
             axis.text.x = element_blank(),
-            axis.ticks.x = element_blank(),
-            legend.position = "bottom")
+            axis.ticks.x = element_blank())
   })
-  ### plot 1 a) ----
-  output$pop.dist.rrt = renderPlot({
-    distname = switch(input$dist,
-                      rnorm = "Distribusi populasi: Normal",
-                      rlnorm = "Distribusi populasi: Condong ke kanan",
-                      rbeta = "Distribusi populasi: Condong ke kiri",
-                      runif = "Distribusi populasi: Seragam",
-                      rnorm2 = "Distribusi populasi: Puncak ganda")
-    pop = parent_rrt()
-    
-    m_pop =  round(mean(pop), 2)
-    sd_pop = round(sd(pop), 2)
-    
-    pop = tibble(samples = pop)
-    pdens = density(pop$samples)
-    
-    x_range = max(pop$samples) - min(pop$samples)
-    y_pos = max(pdens$y) - 0.2*max(pdens$y)
-    
-    if (input$dist == "rnorm"){
-      
-      req(input$mu)
-      mu = input$mu
-      
-      x_pos = ifelse(mu > 0, min(-100, min(pop$samples)) + 20,
-                     max(100, max(pop$samples)) - 20)
-      
-      ggplot(data = pop, aes(x = samples, y = after_stat(density))) + 
-        geom_histogram(bins = 45, color = "white") +
-        # geom_density() + draws a weird baseline. using stat_density() instead.
-        stat_density(geom = "line", size = 2) +
-        scale_x_continuous(limits = c(min(-100, pop$samples), max(100, pop$samples))) +
-        labs(title = distname, x = "x") +
-        annotate("text", x = x_pos, y = y_pos,
-                 label = paste("rerata x", "=", bquote(.(m_pop)),
-                               "\n", "simpangan baku x", "=", bquote(.(sd_pop))),
-                 color = "black", size = 5) +
-        theme_bw(base_size = 19)
-      
-    } else if (input$dist == "runif"){
-      
-      if (u_min() == u_max()){
-        "  " # this is to temporarily prevent graph from displaying while 
-        # observeEvent is fixing the range.
-      } else {
-        
-        x_pos = max(pop$samples) - 0.1*x_range
-        
-        ggplot(data = pop, aes(x = samples, y = ..density..)) +
-          geom_histogram(bins = 45, color = "white") +
-          stat_density(geom = "line", size = 2) +
-          scale_y_continuous(expand = expand_scale(mult = c(0, .3))) +
-          labs(title = distname, x = "x") +
-          annotate("text", x = x_pos, y = y_pos + 0.5*max(pdens$y),
-                   label = paste("rerata x", "=", bquote(.(m_pop)),
-                                 "\n", "simpangan baku x", "=", bquote(.(sd_pop))),
-                   color = "black", size = 5) +
-          theme_bw(base_size = 19)
-      }
-      
-    } else if (input$dist == "rlnorm"){
-      
-      x_pos = max(pop$samples) - 0.1*x_range
-      
-      ggplot(data = pop, aes(x = samples, y = ..density..)) + 
-        geom_histogram(bins = 45, color = "white") +
-        stat_density(geom = "line", size = 2) +
-        labs(title = distname, x = "x") +
-        annotate("text", x = x_pos, y = y_pos,
-                 label = paste("rerata x", "=", bquote(.(m_pop)), 
-                               "\n", "simpangan baku x", "=", bquote(.(sd_pop))),
-                 color = "black", size = 5) +
-        theme_bw(base_size = 19)
-      
-    } else if (input$dist == "rbeta"){
-      
-      x_pos = min(pop$samples) + 0.1*x_range
-      
-      ggplot(data = pop, aes(x = samples, y = ..density..)) + 
-        geom_histogram(bins = 45, color = "white") +
-        stat_density(geom = "line", size = 2) +
-        labs(title = distname, x = "x") +
-        annotate("text", x = x_pos, y = y_pos, 
-                 label = paste("rerata x", "=", bquote(.(m_pop)), 
-                               "\n", "simpangan baku x", "=", bquote(.(sd_pop))),
-                 color = "black", size = 5) +
-        theme_bw(base_size = 19)
-      
-    } else if (input$dist == "rnorm2"){
-      
-      x_pos = min(pop$samples) + 0.1*x_range
-      
-      ggplot(data = pop, aes(x = samples, y = ..density..)) + 
-        geom_histogram(bins = 45, color = "white") +
-        stat_density(geom = "line", size = 2) +
-        labs(title = distname, x = "x") +
-        annotate("text", x = x_pos, y = y_pos, 
-                 label = paste("rerata x", "=", bquote(.(m_pop)), 
-                               "\n", "simpangan baku x", "=", bquote(.(sd_pop))),
-                 color = "black", size = 5) +
-        theme_bw(base_size = 19)
-      
-    }
-  })
-  ### Plot beberapa sampel ----
-  output$sample.dist.rrt = renderPlot({
-    
-    y = samples_rrt()
-    x = samples_rrt() %>% as_tibble()
-    
-    plots = list(rep(NA, 8))
-    
-    for(i in 1:8){
-      
-      mean = round(mean(y[,i]), 2)
-      sd = round(sd(y[,i]), 2)
-      
-      x_range = max(y[,i]) - min(y[,i])
-      pdens = density(y[,i])
-      
-      x_pos = ifelse(input$dist == "rbeta", min(y[,i]) + 0.1*x_range, 
-                     max(y[,i]) - 0.1*x_range)
-      
-      plots[[i]] = ggplot(x, aes_string(x = paste0("V", i))) +
-        geom_dotplot(alpha = 0.8, dotsize = 0.7,
-                     fill = "#1b9e77", color = "#1b9e77") +
-        geom_segment(aes(x = mean(y[,i]), y = 0,
-                         xend = mean(y[,i]), yend = Inf),
-                     color = "#d95f02", alpha = .6) +
-        labs(title = paste("Sampel", i, sep = " "), x = "", y = "") +
-        theme_bw(base_size = 13) +
-        annotate("text", x = x_pos, y = 1.8,
-                 label = paste("x_bar", "=", bquote(.(mean)),
-                               "\n", "SD", "=", bquote(.(sd))),
-                 color = "black", size = 3) +
-        scale_y_continuous(limits = c(0,2), breaks = NULL) +
-        theme(panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank())
-    }
-    
-    grid.arrange(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]],
-                 plots[[6]], plots[[7]], plots[[8]], ncol = 4)
-  })
-  
-  
-  
-  # Teks untuk plot beberapa sampel
-  output$num.samples.rrt = renderText({
-    k = input$k_rrt
-    paste0("... dan seterusnya sampai sampel ke-",k,".")
-  })
-  
-  ### Plot distribusi sampling rerata ----
-  output$sampling.dist.rrt = renderPlot({
-    distname = switch(input$dist,
-                      rnorm = "populasi normal",
-                      rlnorm  = "populasi condong ke kanan",
-                      rbeta = "populasi condong ke kiri",
-                      runif = "populasi seragam")
-    
-    n = input$n_rrt
-    k = input$k_rrt
-    
-    pop = parent_rrt()
-    
-    m_pop =  round(mean(pop),2)
-    sd_pop = round(sd(pop),2)
-    
-    ndist = tibble(means = colMeans(samples_rrt()))
-    
-    m_samp =  round(mean(ndist$means),2)
-    sd_samp = round(sd(ndist$means),2)
-    
-    ndens = density(ndist$means)
-    nhist = hist(ndist$means, plot = FALSE)
-    
-    x_range = max(ndist$means) - min(ndist$means)
-    
-    y_pos = max(ndens$y) - 0.1*max(ndens$y)
-    x_pos = ifelse(m_samp > 0, min(ndist$means) + 0.1*x_range, 
-                   max(ndist$means) - 0.1*x_range)
-    
-    p = ggplot(data = ndist, aes(x = means, y = after_stat(density))) +
-      geom_histogram(bins = 20, color = "white", fill = "#d95f02",
-                     alpha = .6) +
-      stat_density(geom = "line", size = 2) +
-      labs(title = paste("Distribusi sampling rerata*"),
-           x = "Rerata sampel",
-           y = "") +
-      annotate("text", x = x_pos, y = y_pos,
-               label = paste("rerata x_bar", "=", bquote(.(m_samp)),
-                             "\n", "simpangan baku x_bar", "=", bquote(.(sd_samp))),
-               color = "black", size = 5) +
-      theme_bw(base_size = 19)
-    
-    if (input$dist == "runif"){
-      
-      if (u_min() == u_max()){
-        " "
-      } else {
-        p
-      }
-    } else {
-      p
-    }
-  })
-  
-  ### Deskripsi plot distribusi sampling rerata ----
-  output$sampling.descr.rrt = renderText({
-    
-    distname = switch(input$dist,
-                      rnorm = "populasi normal",
-                      rlnorm  = "populasi condong ke kanan",
-                      rbeta = "populasi condong ke kiri",
-                      runif = "populasi seragam")
-    
-    k = input$k_rrt
-    n = input$n_rrt
-    paste("*Distribusi rerata dari", k, "sampel acak,
-          masing-masing memuat", n, " observasi
-          dari sebuah", distname)
-  })
-})
+}
 
 # Membuat objek aplikasi Shiny ----
 shinyApp(ui = ui, server = server)

@@ -24,6 +24,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
+  ## Fungsi untuk rerata ----
   # Tetapkan parameter populasi
   mean_populasi <- 500
   sd_populasi <- 100
@@ -39,7 +40,7 @@ server <- function(input, output) {
       
       if (sd_diketahui == "Ya") {
         selang_kepercayaan <- qnorm(c(0.5 - as.numeric(tingkat_kepercayaan)/2, 0.5 + as.numeric(tingkat_kepercayaan)/2),
-                                    rerata_val, sd = sd_populasi/sqrt(ukuran_sampel))
+                                    rerata_val, sd = sd(sampel)/sqrt(ukuran_sampel))
       } else {
         selang_kepercayaan <- t.test(sampel, conf.level = as.numeric(tingkat_kepercayaan))$conf.int
       }
