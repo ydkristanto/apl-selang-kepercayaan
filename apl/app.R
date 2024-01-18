@@ -57,6 +57,14 @@ ui <- shinyUI(fluidPage(
                             uiOutput("shape")
                           ),
                           wellPanel(
+                            selectInput("tingkat_keper_rrt",
+                                        "Tingkat kepercayaan:",
+                                        choices = c("90%" = "0.9",
+                                                    "95%" = "0.95",
+                                                    "99%" = "0.99"),
+                                        selected = "95%")
+                          ),
+                          wellPanel(
                             ### Memilih ukuran sampel ----
                             sliderInput("n_rrt",
                                         "Ukuran sampel:", 
@@ -75,10 +83,10 @@ ui <- shinyUI(fluidPage(
                         mainPanel(
                           tabsetPanel(
                             type = "tabs",
-                            ### Tab distribusi populasi ----
-                            tabPanel(title = "Distribusi Populasi",
+                            ### Tab cakupan SK ----
+                            tabPanel(title = "Cakupan SK",
                                      br(),
-                                     plotOutput("pop.dist.rrt",
+                                     plotOutput("plot_cakupan_rrt",
                                                 height = "500px"),
                                      br()
                             ),
@@ -151,6 +159,7 @@ ui <- shinyUI(fluidPage(
 # Fungsi peladen ----
 seed = as.numeric(Sys.time())
 server <- shinyServer(function(input, output) {
+  ## Fungsi untuk proporsi ----
   ## Fungsi untuk membuat data dan menentukan selang kepercayaan
   membuat_data <- function(p, n_prop, k_prop, tk_prop) {
     set.seed(seed)
@@ -359,18 +368,6 @@ server <- shinyServer(function(input, output) {
   rep_rand_draw_rrt = repeatable(rand_draw_rrt)
   
   ### Mendefinisikan beberapa variabel reaktif lainnya ----
-  parent_rrt = reactive({
-    n_sample_rrt = 1e5
-    return(rep_rand_draw_rrt(input$dist, n_sample_rrt, input$mu, input$sd,
-                             input$minmax[1], input$minmax[2], input$skew,
-                             input$shape))
-  })
-  samples_rrt = reactive({
-    pop = parent_rrt()
-    n = input$n_rrt
-    k = input$k_rrt
-    return(replicate(k, sample(pop, n, replace=TRUE)))
-  })
   u_min = reactive({
     req(input$minmax)
     return(input$minmax[1])
@@ -378,6 +375,55 @@ server <- shinyServer(function(input, output) {
   u_max = reactive({
     req(input$minmax)
     return(input$minmax[2])
+  })
+  n_pop_rrt  <-  1e5
+  pop_rrt <- rep_rand_draw_rrt(dist, n_pop_rrt, mu, sd, min,
+                               max, skew, shape)
+  membuat_data_rrt <- function(n_rrt, k_rrt, tk_rrt) {
+    data_sk <- lapply(1:k_rrt, function(i) {
+      
+      set_sampel <- replicate(k_rrt, sample(pop_rrt, n_rrt, replace = TRUE))
+      sampel <- set_sampel[, i]
+      t_test <- t.test(sampel, conf.level = tk_rrt)
+      sk <- t_test$conf.int
+      rerata <- mean(sampel)
+      mencakup_p <- p >= sk[1] && p <= sk[2]
+      data.frame(x = i, xend = i, y = sk[1], yend = sk[2],
+                 mencakup_p = mencakup_p, rerata = rerata)
+    })
+    return(data_sk)
+  }
+  ### Plot SK rerata ----
+  output$plot_cakupan_rrt <- renderPlot({
+    data_sk <- membuat_data_rrt(input$n_rrt,
+                                input$k_rrt, input$tingkat_keper_rrt)
+    mu_rrt = mean(parent_rrt)
+    sd_rrt = sd(parent_rrt)
+    
+    ggplot() +
+      geom_segment(data = do.call(rbind, data_sk),
+                   aes(x = x, xend = xend, y = y, yend = yend,
+                       color = factor(mencakup_p)),
+                   linewidth = 1,
+                   alpha = .6) +
+      geom_point(data = do.call(rbind, data_sk),
+                 aes(x = x, y = rerata,
+                     color = factor(mencakup_p)),
+                 size = 2) +
+      geom_hline(yintercept = mu_rrt, linetype = "dashed",
+                 color = "black", linewidth = 1) +
+      scale_color_manual(values = c("FALSE" = "#d95f02",
+                                    "TRUE" = "#1b9e77"),
+                         name = "Mencakup p?",
+                         labels = c("FALSE" = "Tidak",
+                                    "TRUE" = "Ya")) +
+      labs(title = "Cakupan selang kepercayaan proporsi",
+           y = "Proporsi") +
+      theme_bw(base_size = 16) +
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            legend.position = "bottom")
   })
   ### plot 1 a) ----
   output$pop.dist.rrt = renderPlot({
