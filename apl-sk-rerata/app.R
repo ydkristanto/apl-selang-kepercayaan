@@ -6,33 +6,51 @@ library(gridExtra)
 # Mendefinisikan UI ----
 ui <- shinyUI(fluidPage(
   title = "Demonstrasi Teorema Limit Pusat -- Aplikasi Shiny",
-  navbarPage("Cakupan Selang Kepercayaan",
+  navbarPage("Demonstrasi Teorema Limit Pusat",
              position = "static-top",
              ## Tab proporsi ----
              tabPanel("Proporsi",
                       sidebarPanel(
                         wellPanel(
                           sliderInput("p_prop", "Proporsi populasi:",
-                                      0.5, min = 0, max = 1, step = 0.01)
-                        ),
-                        wellPanel(
-                          selectInput("tingkat_keper_prop",
-                                      "Tingkat kepercayaan:",
-                                      choices = c("90%" = "0.90",
-                                                  "95%" = "0.95",
-                                                  "99%" = "0.99"),
-                                      selected = "0.95")
+                                      value = .5,
+                                      step = .01,
+                                      min = 0,
+                                      max = 1)
                         ),
                         wellPanel(
                           sliderInput("n_prop", "Ukuran sampel:",
-                                      30, min = 10, max = 100, step = 5),
+                                      value = 200,
+                                      step = 1,
+                                      min = 2,
+                                      max = 1000),
+                          hr(),
                           sliderInput("k_prop", "Banyak sampel:",
-                                      20, min = 10, max = 500, step = 10)
+                                      value = 100,
+                                      step = 1,
+                                      min = 10,
+                                      max = 1000)
                         )
                       ),
                       mainPanel(
-                        plotOutput("plot_cakupan_prop"),
-                        textOutput("teks_cakupan_prop")
+                        tabsetPanel(type = "tabs",
+                                    tabPanel("Distribusi Populasi",
+                                             br(),
+                                             plotOutput("pop.dist.prop",
+                                                        height = "450px")),
+                                    tabPanel("Beberapa Sampel",
+                                             br(),
+                                             plotOutput("sample.dist.prop"),
+                                             br(),
+                                             div(h4(textOutput("num.samples.prop")),
+                                                 align ="center")),
+                                    tabPanel("Distribusi Sampling",
+                                             br(),
+                                             plotOutput("sampling.dist.prop"),
+                                             div(textOutput("plot.descr.prop"),
+                                                 align = "center"),
+                                    )
+                        )
                       )
              ),
              ## Tab rerata ----
@@ -151,65 +169,136 @@ ui <- shinyUI(fluidPage(
 # Fungsi peladen ----
 seed = as.numeric(Sys.time())
 server <- shinyServer(function(input, output) {
-  ## Fungsi untuk membuat data dan menentukan selang kepercayaan
-  membuat_data <- function(p, n_prop, k_prop, tk_prop) {
-    set.seed(seed)
-    set_sampel <- matrix(rbinom(n_prop * k_prop, size = 1, prob = p),
-                         ncol = k_prop)
-    data_sk <- lapply(1:k_prop, function(i) {
-      sampel <- set_sampel[, i]
-      prop_test <- prop.test(sum(sampel), length(sampel),
-                             conf.level = as.numeric(tk_prop))
-      sk <- prop_test$conf.int
-      rerata <- mean(sampel)
-      mencakup_p <- p >= sk[1] && p <= sk[2]
-      data.frame(x = i, xend = i, y = sk[1], yend = sk[2],
-                 mencakup_p = mencakup_p, rerata = rerata)
-    })
-    return(data_sk)
+  ## Fungsi untuk proporsi ----
+  rand_draw = function(n, p)
+  {
+    vals = NULL
+    vals = do.call(rbinom, list(n = n, size = 1, prob = p))      
+    return(vals)
   }
-  
-  # Plot cakupan selang kepercayaan
-  output$plot_cakupan_prop <- renderPlot({
-    data_sk <- membuat_data(input$p_prop, input$n_prop,
-                            input$k_prop, input$tingkat_keper_prop)
-    
-    ggplot() +
-      geom_segment(data = do.call(rbind, data_sk),
-                   aes(x = x, xend = xend, y = y, yend = yend,
-                       color = factor(mencakup_p)),
-                   linewidth = 1,
-                   alpha = .6) +
-      geom_point(data = do.call(rbind, data_sk),
-                 aes(x = x, y = rerata,
-                     color = factor(mencakup_p)),
-                 size = 2) +
-      geom_hline(yintercept = input$p_prop, linetype = "dashed",
-                 color = "black", linewidth = 1) +
-      scale_color_manual(values = c("FALSE" = "#d95f02",
-                                    "TRUE" = "#1b9e77"),
-                         name = "Mencakup p?",
-                         labels = c("FALSE" = "Tidak",
-                                    "TRUE" = "Ya")) +
-      labs(title = "Cakupan selang kepercayaan proporsi",
-           y = "Proporsi") +
+  rep_rand_draw = repeatable(rand_draw)  
+  parent = reactive({
+    n = 1e5
+    return(rep_rand_draw(input$n_prop, input$p_prop))
+  })
+  samples = reactive({
+    pop = parent()
+    n = input$n_prop
+    k = input$k_prop
+    return(replicate(k, sample(pop, n, replace = TRUE)))
+  })
+  ### Plot populasi proporsi ----
+  output$pop.dist.prop = renderPlot({
+    popsize = 1000
+    counts = data.frame(number = c("0","1"),
+                        freq = c(popsize * (1 - input$p_prop),
+                                 popsize * input$p_prop) / popsize)
+    ggplot(counts, aes(x = number, y = freq, fill = factor(number))) +
+      geom_bar(stat = "identity") +
+      labs(x = "", y = "Frekuensi Relatif",
+           title = paste0("Distribusi populasi: p = ", input$p_prop),
+           size = 14, face = "bold") +
+      scale_y_continuous(limits = c(0, 1)) +
+      scale_fill_brewer(palette = "Dark2") +
       theme_bw(base_size = 16) +
-      theme(axis.title.x = element_blank(),
-            axis.text.x = element_blank(),
-            axis.ticks.x = element_blank(),
-            legend.position = "bottom")
+      theme(legend.position = "none")
+  })
+  ### Plot beberapa sampel proporsi ----
+  output$sample.dist.prop = renderPlot({
+    x = samples()
+    plot <- list()
+    for(i in 1:8){
+      df <- tibble(obs = x[,i])
+      counts <- df %>% count(obs)
+      plot[[i]] <- ggplot(counts, aes(x = obs, y = n, fill = factor(obs))) +
+        geom_bar(stat = "identity") +
+        scale_y_continuous(limits = c(0, 1.2 * max(counts$n))) +
+        scale_x_discrete(limits = c(0, 1)) +
+        scale_fill_brewer(palette = "Dark2") +
+        theme_bw(base_size = 12) +
+        theme(legend.position = "none") +  
+        labs(x = "",  y = "Frekuensi",
+             title = paste("Sampel",i), size = 14, face = "bold")
+      mean_samp = round(mean(x[,i]),2)
+      sd_samp = round(sd(x[,i]),2)
+      y_pos = max(counts$n) + 0.07 * max(counts$n)
+      # #added if statement to check if count 1 or count 2 are NA. this check
+      # #eliminated the error messages in the app
+      if(!is.na(counts$n[1]) & !is.na(counts$n[2])) {
+        if(counts$n[1] > counts$n[2]) {
+          plot[[i]] <- plot[[i]] +
+            annotate("text", x = 1, y = y_pos,
+                     label = paste("p_topi =",
+                                   bquote(.(mean_samp))),
+                     color ="black", size = 3) 
+        }
+        else {
+          plot[[i]] <- plot[[i]] +
+            annotate("text", x = 0, y = y_pos,
+                     label = paste("p_topi =" ,
+                                   bquote(.(mean_samp))),
+                     color = "black", size = 3) 
+        }}
+      else {
+        plot[[i]] <- plot[[i]] +
+          annotate("text", x = 0.5, y = y_pos,
+                   label = paste("p_topi =" , bquote(.(mean_samp))),
+                   color = "black", size = 3)
+      }
+    }
+    grid.arrange(plot[[1]], plot[[2]], plot[[3]], plot[[4]],
+                 plot[[5]], plot[[6]], plot[[7]], plot[[8]],
+                 ncol = 4)
+  })
+  # teks
+  output$num.samples.prop = renderText({
+    k = input$k_prop
+    paste0("... dan seterusnya sampai sampel ke-", k,".")
+  })
+  ### Plot distribusi sampling proporsi ----
+  output$sampling.dist.prop = renderPlot({
+    n = input$n_prop
+    p = input$p_prop
+    k = input$k_prop
+    pop = parent()
+    ndist = tibble(means = colMeans(samples()))
+    
+    ndens = density(ndist$means)
+    nhist = hist(ndist$means, plot = FALSE)
+    
+    m_samp = round(mean(ndist$means), 2)
+    sd_samp = round(sd(ndist$means), 2)
+    sd_teor = sqrt(p * (1 - p) / n)
+    
+    x_range = max(ndist$means) - min(ndist$means)
+    y_pos = max(ndens$y) - 0.1*max(ndens$y)
+    x_pos = if_else(m_samp > 0, min(ndist$means) + 0.1*x_range, max(ndist$means) - 0.1*x_range)
+    
+    # minor change in the way the title is displayed
+    
+    ggplot(ndist, aes(x = ndist$means)) +
+      geom_histogram(aes(y = after_stat(density)),
+                     bins = 20, color ="white") +
+      stat_density(geom = "line", size = 1) +
+      labs(title = paste("Distribusi sampling proporsi*"),
+           x = "Proporsi sampel",
+           y = "") +
+      annotate("text", x = x_pos, y = y_pos,
+               label = paste("rerata p_topi","=", bquote(.(m_samp)),"\n", "SD p_topi ", "=", bquote(.(sd_samp))),
+               color = "black", size = 5) +
+      theme_bw(base_size = 17) 
   })
   
-  # Display coverage percentage
-  output$teks_cakupan_prop <- renderText({
-    n <- input$n_prop
-    k <- input$k_prop
-    tingkat_keper <- as.numeric(input$tingkat_keper_prop) * 100
-    data_sk <- membuat_data(input$p_prop, input$n_prop,
-                            input$k_prop, input$tingkat_keper_prop)
-    persen_mencakup <- mean(sapply(data_sk,
-                                   function(sk) sk$mencakup_p)) * 100
-    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(persen_mencakup, 2), "%", sep = "")
+  # text
+  output$plot.descr.prop = renderText({
+    n = input$n_prop
+    p = input$p_prop
+    k = input$k_prop
+    
+    paste("*Distribusi proporsi ", k, 
+          " sampel acak, masing-masing\nmemuat ", n, 
+          " observasi dari populasi", sep = "")
+    
   })
   ## Fungsi untuk rerata ----
   ### Slider rerata untuk distribusi normal ----

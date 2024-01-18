@@ -7,16 +7,23 @@ ui <- fluidPage(
   titlePanel("Selang Kepercayaan Proporsi"),
   sidebarLayout(
     sidebarPanel(
-      sliderInput("p_prop", "Proporsi populasi:",
-                  0.5, min = 0, max = 1, step = 0.01),
-      sliderInput("n_prop", "Ukuran sampel",
-                  30, min = 10, max = 100, step = 5),
-      sliderInput("k_prop", "Banyak sampel:",
-                  20, min = 10, max = 500, step = 10),
-      selectInput("tingkat_keper_prop", "Tingkat kepercayaan:",
-                  choices = c("90%" = "0.90",
-                              "95%" = "0.95",
-                              "99%" = "0.99"))
+      wellPanel(
+        sliderInput("p_prop", "Proporsi populasi:",
+                    0.5, min = 0, max = 1, step = 0.01)
+      ),
+      wellPanel(
+        selectInput("tingkat_keper_prop", "Tingkat kepercayaan:",
+                    choices = c("90%" = "0.90",
+                                "95%" = "0.95",
+                                "99%" = "0.99"),
+                    selected = "0.95")
+      ),
+      wellPanel(
+        sliderInput("n_prop", "Ukuran sampel:",
+                    30, min = 10, max = 100, step = 5),
+        sliderInput("k_prop", "Banyak sampel:",
+                    20, min = 10, max = 500, step = 10)
+      )
     ),
     
     mainPanel(
@@ -30,43 +37,47 @@ ui <- fluidPage(
 seed = as.numeric(Sys.time())
 server <- function(input, output) {
   # Fungsi untuk membuat data dan menentukan selang kepercayaan
-  generate_data <- function(p, n_prop, k_prop, tk_prop) {
+  membuat_data <- function(p, n_prop, k_prop, tk_prop) {
     set.seed(seed)
-    samples <- matrix(rbinom(n_prop * k_prop, size = 1, prob = p),
+    set_sampel <- matrix(rbinom(n_prop * k_prop, size = 1, prob = p),
                       ncol = k_prop)
-    ci_data <- lapply(1:k_prop, function(i) {
-      sample <- samples[, i]
-      prop_test <- prop.test(sum(sample), length(sample),
+    data_sk <- lapply(1:k_prop, function(i) {
+      sampel <- set_sampel[, i]
+      prop_test <- prop.test(sum(sampel), length(sampel),
                              conf.level = as.numeric(tk_prop))
-      ci <- prop_test$conf.int
-      mean_value <- mean(sample)
-      is_covering <- p >= ci[1] && p <= ci[2]
-      data.frame(x = i, xend = i, y = ci[1], yend = ci[2], is_covering = is_covering, mean_value = mean_value)
+      sk <- prop_test$conf.int
+      rerata <- mean(sampel)
+      mencakup_p <- p >= sk[1] && p <= sk[2]
+      data.frame(x = i, xend = i, y = sk[1], yend = sk[2],
+                 mencakup_p = mencakup_p, rerata = rerata)
     })
-    
-    return(ci_data)
+    return(data_sk)
   }
   
   # Plot cakupan selang kepercayaan
   output$plot_cakupan_prop <- renderPlot({
-    ci_data <- generate_data(input$p_prop, input$n_prop,
+    data_sk <- membuat_data(input$p_prop, input$n_prop,
                              input$k_prop, input$tingkat_keper_prop)
     
     ggplot() +
-      geom_segment(data = do.call(rbind, ci_data),
+      geom_segment(data = do.call(rbind, data_sk),
                    aes(x = x, xend = xend, y = y, yend = yend,
-                       color = factor(is_covering)),
-                   size = 1,
+                       color = factor(mencakup_p)),
+                   linewidth = 1,
                    alpha = .6) +
-      geom_point(data = do.call(rbind, ci_data),
-                 aes(x = x, y = mean_value,
-                     color = factor(is_covering)),
+      geom_point(data = do.call(rbind, data_sk),
+                 aes(x = x, y = rerata,
+                     color = factor(mencakup_p)),
                  size = 2) +
       geom_hline(yintercept = input$p_prop, linetype = "dashed",
                  color = "black", linewidth = 1) +
-      scale_color_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+      scale_color_manual(values = c("FALSE" = "#d95f02",
+                                    "TRUE" = "#1b9e77"),
+                         name = "Mencakup p?",
+                         labels = c("FALSE" = "Tidak",
+                                    "TRUE" = "Ya")) +
       labs(title = "Cakupan selang kepercayaan proporsi",
-           y = "Proporsi populasi") +
+           y = "Proporsi") +
       theme_bw(base_size = 16) +
       theme(axis.title.x = element_blank(),
             axis.text.x = element_blank(),
@@ -76,9 +87,14 @@ server <- function(input, output) {
   
   # Display coverage percentage
   output$teks_cakupan_prop <- renderText({
-    ci_data <- generate_data(input$p_prop, input$n_prop, input$k_prop, input$tingkat_keper_prop)
-    covering_percentage <- mean(sapply(ci_data, function(ci) ci$is_covering)) * 100
-    paste("Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(covering_percentage, 2), "%", sep = "")
+    n <- input$n_prop
+    k <- input$k_prop
+    tingkat_keper <- as.numeric(input$tingkat_keper_prop) * 100
+    data_sk <- membuat_data(input$p_prop, input$n_prop,
+                            input$k_prop, input$tingkat_keper_prop)
+    persen_mencakup <- mean(sapply(data_sk,
+                                   function(sk) sk$mencakup_p)) * 100
+    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(persen_mencakup, 2), "%", sep = "")
   })
 }
 
