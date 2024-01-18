@@ -6,7 +6,7 @@ library(gridExtra)
 # Mendefinisikan UI ----
 ui <- shinyUI(fluidPage(
   title = "Demonstrasi Teorema Limit Pusat -- Aplikasi Shiny",
-  navbarPage("Demonstrasi Teorema Limit Pusat",
+  navbarPage("Cakupan Selang Kepercayaan",
              position = "static-top",
              ## Tab proporsi ----
              tabPanel("Proporsi",
@@ -20,20 +20,30 @@ ui <- shinyUI(fluidPage(
                         ),
                         wellPanel(
                           sliderInput("n_prop", "Ukuran sampel:",
-                                      value = 200,
+                                      value = 30,
                                       step = 1,
                                       min = 2,
-                                      max = 1000),
+                                      max = 100),
                           hr(),
                           sliderInput("k_prop", "Banyak sampel:",
-                                      value = 100,
+                                      value = 20,
                                       step = 1,
                                       min = 10,
-                                      max = 1000)
+                                      max = 100)
+                        ),
+                        wellPanel(
+                          radioButtons("level", "Tingkat kepercayaan:",
+                                       choices = c("90%" = ".9",
+                                                   "95%" = ".95",
+                                                   "99%" = ".99"))
                         )
                       ),
                       mainPanel(
                         tabsetPanel(type = "tabs",
+                                    tabPanel("Cakupan",
+                                             br(),
+                                             plotOutput("conf.int",
+                                                        height = "540px")),
                                     tabPanel("Distribusi Populasi",
                                              br(),
                                              plotOutput("pop.dist.prop",
@@ -170,22 +180,41 @@ ui <- shinyUI(fluidPage(
 seed = as.numeric(Sys.time())
 server <- shinyServer(function(input, output) {
   ## Fungsi untuk proporsi ----
-  rand_draw = function(n, p)
+  rand_draw_prop = function(n, p)
   {
     vals = NULL
     vals = do.call(rbinom, list(n = n, size = 1, prob = p))      
     return(vals)
   }
-  rep_rand_draw = repeatable(rand_draw)  
-  parent = reactive({
+  rep_rand_draw_prop = repeatable(rand_draw_prop)  
+  parent_prop = reactive({
     n = 1e5
-    return(rep_rand_draw(input$n_prop, input$p_prop))
+    return(rep_rand_draw_prop(input$n_prop, input$p_prop))
   })
-  samples = reactive({
-    pop = parent()
+  samples_prop = reactive({
+    pop = parent_prop()
     n = input$n_prop
     k = input$k_prop
     return(replicate(k, sample(pop, n, replace = TRUE)))
+  })
+  ### Plot selang kepercayaan ----
+  output$conf.int = renderPlot({
+    k_prop = input$k_prop
+    x = samples_prop()
+    conf_int_lwr_prop = c()
+    conf_int_upr_prop = c()
+    for (i in k_prop) {
+      conf_int_lwr_prop[i] = prop.test(sum(x[, i]), k_prop,
+                                    correct = FALSE)$conf.int[1]
+      conf_int_upr_prop[i] = prop.test(sum(x[, i]), k_prop,
+                                       correct = FALSE)$conf.int[2]
+    }
+    conf_int_prop = tibble(sample = 1:k_prop,
+                           lwr = conf_int_lwr_prop,
+                           upr = conf_int_upr_prop)
+    ggplot(conf_int_prop) +
+      geom_segment(aes(x = sample, y = lwr,
+                       xend = sample, yend = upr))
   })
   ### Plot populasi proporsi ----
   output$pop.dist.prop = renderPlot({
@@ -205,7 +234,7 @@ server <- shinyServer(function(input, output) {
   })
   ### Plot beberapa sampel proporsi ----
   output$sample.dist.prop = renderPlot({
-    x = samples()
+    x = samples_prop()
     plot <- list()
     for(i in 1:8){
       df <- tibble(obs = x[,i])
