@@ -34,6 +34,7 @@ ui <- fluidPage(
                         )
                       ),
                       mainPanel(
+                        ### Panel utama ---
                         plotOutput("plot_cakupan_prop",
                                    height = "450px"),
                         textOutput("teks_cakupan_prop")
@@ -79,7 +80,8 @@ ui <- fluidPage(
                         mainPanel(
                           ### Plot output rerata ----
                           plotOutput("plot_cakupan_rrt",
-                                     height = "450px")
+                                     height = "450px"),
+                          textOutput("teks_cakupan_rrt")
                           )
                         )
                       ),
@@ -91,13 +93,13 @@ ui <- fluidPage(
                             div(h4("Deskripsi",
                              style = "font-size: inherit;
                              font-weight: bold")),
-                             div(p("Aplikasi Shiny ini digunakan untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata."))
+                             div(p("Aplikasi Shiny ini digunakan untuk mendemonstrasikan cakupan selang kepercayaan proporsi dan rerata terhadap parameter populasinya."))
                              ),
                            wellPanel(
                              div(h4("Kode sumber",
                              style = "font-size: inherit;
                              font-weight: bold")),
-                             div(p("Kode sumber aplikasi ini tersedia di repositori", a("Github.", href = "https://github.com/ydkristanto/apl-tlp", target = "_blank"), "Jika Anda ingin melaporkan masalah atau meminta fitur tambahan terhadap aplikasi ini, silakan", a("buat sebuah isu", href = "https://github.com/ydkristanto/apl-tlp/issues", target = "_blank"), "atau lebih baik lagi", a("minta penarikan", href = "https://github.com/ydkristanto/apl-tlp/pulls", target = "_blank"), "di repositori tersebut."))
+                             div(p("Kode sumber aplikasi ini tersedia di", a("repositori Github.", href = "https://github.com/ydkristanto/apl-selang-kepercayaan", target = "_blank"), "Jika Anda ingin melaporkan masalah atau meminta fitur tambahan terhadap aplikasi ini, silakan", a("buat sebuah isu", href = "https://github.com/ydkristanto/apl-selang-kepercayaan/issues", target = "_blank"), "atau lebih baik lagi", a("minta penarikan", href = "https://github.com/ydkristanto/apl-selang-kepercayaan/pulls", target = "_blank"), "di repositori tersebut."))
                              ),
                            wellPanel(
                              div(h4("Lisensi",
@@ -108,16 +110,14 @@ ui <- fluidPage(
                              )
                            ),
                          mainPanel(
-                           div(h3("Aplikasi Shiny Teorema Limit Pusat")),
-                           div(p("Tujuan aplikasi interaktif ini adalah untuk mendemonstrasikan Teorema Limit Pusat untuk distribusi sampling proporsi dan rerata satu populasi. Beberapa ide penting statistik ditunjukkan oleh aplikasi ini. Ide-ide penting tersebut antara lain adalah sebagai berikut."), align = "justify"),
-                           div(tags$ul(tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling proporsinya mendekati normal."),
-                                       tags$li("Distribusi sampling proporsi tersebut memiliki rerata sama dengan proporsi populasinya dan simpangan bakunya sama dengan akar kuadrat dari hasil kali antara proporsi populasi dan satu dikurangi proporsi tersebut kemudian dibagi dengan ukuran sampel."),
-                                       tags$li("Jika ukuran sampelnya cukup besar, distribusi sampling reratanya mendekati normal."),
-                                       tags$li("Untuk sampel yang berukuran kecil, distribusi sampling reratanya mendekati normal jika populasi dari sampel tersebut berdistribusi normal."),
-                                       tags$li("Distribusi sampling rerata tersebut memiliki rerata yang sama dengan rerata populasinya dan simpangan baku yang sama dengan simpangan baku populasi dibagi dengan akar kuadrat ukuran sampel.")), align = "justify"),
+                           div(h3("Aplikasi Shiny Selang Kepercayaan")),
+                           div(p("Aplikasi interaktif ini dimaksudkan untuk mendemonstrasikan selang-selang kepercayaan proporsi dan rerata yang mencakup parameter populasinya. Beberapa ide penting statistik yang ditunjukkan oleh aplikasi ini antara lain sebagai berikut."), align = "justify"),
+                           div(tags$ul(tags$li("Semakin besar tingkat kepercayaannya, semakin besar persentase selang kepercayaan yang mencakup parameter populasinya."),
+                                       tags$li("Semakin besar tingkat kepercayaannya, pias galatnya juga semakin besar. Hal ini ditunjukkan dengan semakin panjangnya selang kepercayaannya."),
+                                       tags$li("Untuk rerata, ketika ukuran sampelnya kecil, metode yang menganggap sigma (simpangan baku populasi) tidak diketahui cenderung menghasilkan persentase pencakupan rerata populasi yang lebih tinggi.")), align = "justify"),
                            hr(),
                            div(p("Aplikasi interaktif ini dikembangkan dengan menggunakan bahasa pemrogram", a("R", href = "https://www.R-project.org/", target = "_blank"), "dan paket", a("Shiny.", href = "https://CRAN.R-project.org/package=shiny", target = "_blank"), "Paket", a("shinylive", href = "https://posit-dev.github.io/r-shinylive/", target = "_blank"), "digunakan untuk mengekspor aplikasi ini agar dapat dijalankan di peramban web tanpa peladen R yang terpisah."), align = "justify"),
-                           div(p("Pengembang dan pemelihara aplikasi ini adalah", a("Yosep Dwi Kristanto,", href = "https://people.usd.ac.id/~ydkristanto/", target = "_blank"), "seorang dosen dan peneliti di program studi", a("Pendidikan Matematika,", href = "https://usd.ac.id/s1pmat", target = "_blank"), a("Universitas Sanata Dharma,", href = "https://www.usd.ac.id/", target = "_blank"), "Yogyakarta. Aplikasi ini merupakan modifikasi dari aplikasi-aplikasi interaktif", a("ShinyEd", href = "https://github.com/ShinyEd/intro-stats/", target = "_blank"), "yang dikembangkan oleh Mine Çetinkaya-Rundel dkk."), align = "justify"),
+                           div(p("Pengembang dan pemelihara aplikasi ini adalah", a("Yosep Dwi Kristanto,", href = "https://people.usd.ac.id/~ydkristanto/", target = "_blank"), "seorang dosen dan peneliti di program studi", a("Pendidikan Matematika,", href = "https://usd.ac.id/s1pmat", target = "_blank"), a("Universitas Sanata Dharma,", href = "https://www.usd.ac.id/", target = "_blank"), "Yogyakarta."), align = "justify"),
                   width = 6)
                   )
                   )
@@ -145,18 +145,23 @@ server <- function(input, output) {
     })
     return(data_sk)
   }
+  rep_membuat_data <- repeatable(membuat_data)
   
   # Plot cakupan selang kepercayaan
   output$plot_cakupan_prop <- renderPlot({
-    data_sk <- membuat_data(input$p_prop, input$n_prop,
+    data_sk <- rep_membuat_data(input$p_prop, input$n_prop,
                             input$k_prop, input$tingkat_keper_prop)
+    k <- input$k_prop
+    alpha_sk <- function(x) {
+      return(-3 / 1200500 * (x - 10)^2 + 1)
+    }
     
     ggplot() +
       geom_segment(data = do.call(rbind, data_sk),
                    aes(x = x, xend = xend, y = y, yend = yend,
                        color = factor(mencakup_p)),
                    linewidth = 1,
-                   alpha = .6) +
+                   alpha = alpha_sk(k)) +
       geom_point(data = do.call(rbind, data_sk),
                  aes(x = x, y = rerata,
                      color = factor(mencakup_p)),
@@ -177,23 +182,19 @@ server <- function(input, output) {
             legend.position = "bottom")
   })
   
-  # Display coverage percentage
+  ### Teks informasi grafik ----
   output$teks_cakupan_prop <- renderText({
     n <- input$n_prop
     k <- input$k_prop
     tingkat_keper <- as.numeric(input$tingkat_keper_prop) * 100
-    data_sk <- membuat_data(input$p_prop, input$n_prop,
+    data_sk <- rep_membuat_data(input$p_prop, input$n_prop,
                             input$k_prop, input$tingkat_keper_prop)
     persen_mencakup <- mean(sapply(data_sk,
                                    function(sk) sk$mencakup_p)) * 100
     paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(persen_mencakup, 2), "%", sep = "")
   })
   ## Fungsi untuk rerata ----
-  # Tetapkan parameter populasi
-  mean_populasi <- 500
-  sd_populasi <- 100
-  
-  # Fungsi untuk menghasilkan data dan menghitung selang kepercayaan
+  ### Fungsi hasilkan data ----
   hasilkan_data <- function(n, k, tk, sigma) {
     data_sk <- lapply(1:k, function(i) {
       sampel <- rnorm(n, mean = 500, sd = 100)
@@ -225,13 +226,17 @@ server <- function(input, output) {
     data_sk <- rep_hasilkan_data(input$n_rrt, input$k_rrt,
                                  input$tingkat_keper_rrt,
                                  input$sigma_rrt)
+    k <- input$k_rrt
+    alpha_sk <- function(x) {
+      return(-3 / 1200500 * (x - 10)^2 + 1)
+    }
     
     ggplot() +
       geom_segment(data = do.call(rbind, data_sk),
                    aes(x = x, xend = xend, y = y, yend = yend,
                        color = factor(mencakup_rrt_populasi)),
                    size = 1,
-                   alpha = .6) +
+                   alpha = alpha_sk(k)) +
       geom_point(data = do.call(rbind, data_sk),
                  aes(x = x, y = rerata,
                      color = factor(mencakup_rrt_populasi)),
@@ -250,6 +255,19 @@ server <- function(input, output) {
             axis.title.x = element_blank(),
             axis.text.x = element_blank(),
             axis.ticks.x = element_blank())
+  })
+  ### Teks informasi grafik ----
+  output$teks_cakupan_rrt <- renderText({
+    n <- input$n_rrt
+    k <- input$k_rrt
+    tingkat_keper <- as.numeric(input$tingkat_keper_rrt) * 100
+    data_sk <- rep_hasilkan_data(input$n_rrt, input$k_rrt,
+                                 input$tingkat_keper_rrt,
+                                 input$sigma_rrt)
+    persen_mencakup <- mean(sapply(data_sk,
+                                   function(sk)
+                                     sk$mencakup_rrt_populasi)) * 100
+    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Setiap sampel tersebut dipilih secara acak dari sebuah populasi yang berdistribusi normal dengan rerata 500 dan simpangan baku (sigma) 100. Persentase selang kepercayaan yang mencakup rerata populasi: ", round(persen_mencakup, 2), "%", sep = "")
   })
 }
 
