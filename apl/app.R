@@ -45,7 +45,16 @@ ui <- fluidPage(
                       sidebarLayout(
                         sidebarPanel(
                           wellPanel(
-                            ### Memilih tingkat kepercayaan SK rerata ----
+                            ### Memilih distribusi populasi ----
+                            radioButtons("dist_pop_rrt",
+                                         "Distribusi populasi:",
+                                         choices = c("Normal" = "rnorm",
+                                                     "Seragam" = "runif",
+                                                     "Condong ke kanan" = "rlnorm",
+                                                     "Condong ke kiri" = "rbeta",
+                                                     "Puncak ganda" = "rnorm2"),
+                                         selected = "rnorm"),
+                            ### Memilih kondisi statistik ----
                             radioButtons("sigma_rrt",
                                          "Sigma diketahui:",
                                          choices = c("Ya", "Tidak"),
@@ -53,6 +62,7 @@ ui <- fluidPage(
                                          inline = TRUE)
                             ),
                           wellPanel(
+                            ### Memilih tingkat kepercayaan SK rerata ----
                             selectInput("tingkat_keper_rrt",
                                         "Tingkat kepercayaan:",
                                         choices = c("90%" = "0.9",
@@ -195,23 +205,48 @@ server <- function(input, output) {
   })
   ## Fungsi untuk rerata ----
   ### Fungsi hasilkan data ----
-  hasilkan_data <- function(n, k, tk, sigma) {
+  rnorm2 <- function(n, mu1, mu2, sd){
+    return(c(rnorm(n = round(2/5*n), mean = mu1, sd = sd),
+             rnorm(n = n - round(2/5*n), mean = mu2, sd = sd)))
+  }
+  hasilkan_data <- function(dist, n, k, tk, sigma) {
     data_sk <- lapply(1:k, function(i) {
-      sampel <- rnorm(n, mean = 500, sd = 100)
+      if (dist == "rnorm") {
+        sampel <- rnorm(n, mean = 500, sd = 100) 
+        rrt_pop <- 500
+        sd_pop <- 100
+      } else if (dist == "rlnorm") {
+        sampel <- rlnorm(n, meanlog = 6, sdlog = .3)
+        rrt_pop <- exp(6 + (.3)^2 / 2)
+        sd_pop <- sqrt((exp(.3^2) - 1) * exp(2 * 6 + .3^2))
+      } else if (dist == "rbeta") {
+        sampel <- rbeta(n, shape1 = 5, shape2 = 1.5) * 650
+        rrt_pop <- 5 / (5 + 1.5) * 650
+        sd_pop <- sqrt(5 * 1.5 / ((5 + 1.5)^2 * (5 + 1.5 + 1))) * 650
+      } else if (dist == "runif") {
+        sampel <- runif(n, min = 300, max = 700)
+        rrt_pop <- 500
+        sd_pop <- sqrt(1 / 12 * (700 - 300)^2)
+      } else if (dist == "rnorm2") {
+        sampel <- rnorm2(n, mu1 = 400, mu2 = 600, sd = 50)
+        rrt_pop <- 2 / 5 * 400 + 3 / 5 * 600
+        sd_pop <- sqrt(2/5 * (50^2 + (400 - 520)^2) + 
+                         3 / 5 * (50^2 + (600 - 520)^2))
+      }
       rerata_sampel <- mean(sampel)
       if (sigma == "Ya") {
         selang_kepercayaan <- qnorm(c(0.5 - as.numeric(tk)/2,
                                       0.5 + as.numeric(tk)/2),
                                     mean = rerata_sampel,
-                                    sd = 100 / sqrt(n))
+                                    sd = sd_pop / sqrt(n))
       } else {
         selang_kepercayaan <- t.test(sampel,
                                      conf.level = as.numeric(tk))$conf.int
       }
       
       # Periksa apakah selang kepercayaan mencakup rerata populasi
-      mencakup_rrt_populasi <- selang_kepercayaan[1] <= 500 &&
-        selang_kepercayaan[2] >= 500
+      mencakup_rrt_populasi <- selang_kepercayaan[1] <= rrt_pop &&
+        selang_kepercayaan[2] >= rrt_pop
       
       data.frame(x = i, xend = i, y = selang_kepercayaan[1],
                  yend = selang_kepercayaan[2], rerata = rerata_sampel,
@@ -223,25 +258,36 @@ server <- function(input, output) {
   
   ### Plot selang kepercayaan rerata ----
   output$plot_cakupan_rrt <- renderPlot({
-    data_sk <- rep_hasilkan_data(input$n_rrt, input$k_rrt,
+    data_sk <- rep_hasilkan_data(input$dist_pop_rrt, input$n_rrt, input$k_rrt,
                                  input$tingkat_keper_rrt,
                                  input$sigma_rrt)
     k <- input$k_rrt
     alpha_sk <- function(x) {
       return(-3 / 1200500 * (x - 10)^2 + 1)
     }
+    if (input$dist_pop_rrt == "rnorm") {
+      rrt_pop <- 500
+    } else if (input$dist_pop_rrt == "rlnorm") {
+      rrt_pop <- exp(6 + (.3)^2 / 2)
+    } else if (input$dist_pop_rrt == "rbeta") {
+      rrt_pop <- 5 / (5 + 1.5) * 650
+    } else if (input$dist_pop_rrt == "runif") {
+      rrt_pop <- 500
+    } else if (input$dist_pop_rrt == "rnorm2") {
+      rrt_pop <- 520
+    }
     
     ggplot() +
       geom_segment(data = do.call(rbind, data_sk),
                    aes(x = x, xend = xend, y = y, yend = yend,
                        color = factor(mencakup_rrt_populasi)),
-                   size = 1,
+                   linewidth = 1,
                    alpha = alpha_sk(k)) +
       geom_point(data = do.call(rbind, data_sk),
                  aes(x = x, y = rerata,
                      color = factor(mencakup_rrt_populasi)),
                  size = 2) +
-      geom_hline(yintercept = 500, linetype = "dashed",
+      geom_hline(yintercept = rrt_pop, linetype = "dashed",
                  linewidth = 1) +
       scale_color_manual(name = "Mencakup mu?",
                          values = c("TRUE" = "#1b9e77",
@@ -261,13 +307,35 @@ server <- function(input, output) {
     n <- input$n_rrt
     k <- input$k_rrt
     tingkat_keper <- as.numeric(input$tingkat_keper_rrt) * 100
-    data_sk <- rep_hasilkan_data(input$n_rrt, input$k_rrt,
-                                 input$tingkat_keper_rrt,
+    if (input$dist_pop_rrt == "rnorm") {
+      dist_pop <- "normal"
+      rrt_pop <- 500
+      sd_pop <- 100
+    } else if (input$dist_pop_rrt == "rlnorm") {
+      dist_pop <- "condong ke kanan"
+      rrt_pop <- exp(6 + (.3)^2 / 2)
+      sd_pop <- sqrt((exp(.3^2) - 1) * exp(2 * 6 + .3^2))
+    } else if (input$dist_pop_rrt == "rbeta") {
+      dist_pop <- "condong ke kiri"
+      rrt_pop <- 5 / (5 + 1.5) * 650
+      sd_pop <- sqrt(5 * 1.5 / ((5 + 1.5)^2 * (5 + 1.5 + 1))) * 650
+    } else if (input$dist_pop_rrt == "runif") {
+      dist_pop <- "seragam"
+      rrt_pop <- 500
+      sd_pop <- sqrt(1 / 12 * (700 - 300)^2)
+    } else if (input$dist_pop_rrt == "rnorm2") {
+      dist_pop <- "puncak ganda"
+      rrt_pop <- 2 / 5 * 400 + 3 / 5 * 600
+      sd_pop <- sqrt(2/5 * (50^2 + (400 - 520)^2) + 
+                       3 / 5 * (50^2 + (600 - 520)^2))
+    }
+    data_sk <- rep_hasilkan_data(input$dist_pop_rrt, input$n_rrt,
+                                 input$k_rrt, input$tingkat_keper_rrt,
                                  input$sigma_rrt)
     persen_mencakup <- mean(sapply(data_sk,
                                    function(sk)
                                      sk$mencakup_rrt_populasi)) * 100
-    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Setiap sampel tersebut dipilih secara acak dari sebuah populasi yang berdistribusi normal dengan rerata 500 dan simpangan baku (sigma) 100. Persentase selang kepercayaan yang mencakup rerata populasi: ", round(persen_mencakup, 2), "%", sep = "")
+    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Setiap sampel tersebut dipilih secara acak dari sebuah populasi yang berdistribusi ", dist_pop, " dengan rerata ", round(rrt_pop, 2), " dan simpangan baku ", round(sd_pop, 2), ". Persentase selang kepercayaan yang mencakup rerata populasi: ", round(persen_mencakup, 2), "%", sep = "")
   })
 }
 
