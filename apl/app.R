@@ -1,6 +1,6 @@
 # Memanggil paket ----
 library(shiny)
-library(ggplot2)
+library(tidyverse)
 
 # Mendefinisikan UI ----
 ui <- fluidPage(
@@ -37,7 +37,14 @@ ui <- fluidPage(
                         ### Panel utama ---
                         plotOutput("plot_cakupan_prop",
                                    height = "450px"),
-                        textOutput("teks_cakupan_prop")
+                        fluidRow(
+                          column(8,
+                                 div(p(textOutput("teks_cakupan_prop"),
+                                        align = "justify")),
+                                 div(p("Sebagai perbandingan, silakan cermati distribusi populasinya dan amati sebaran proporsi sampel-sampelnya. Dalam distribusi populasi tersebut, proporsi sampel direpresentasikan sebagai garis berwarna hijau dan oranye."))),
+                          column(4, plotOutput("plot_dist_pop_prop",
+                                               height = "200px"))
+                        )
                       )
              ),
              ## Tab rerata ----
@@ -91,7 +98,15 @@ ui <- fluidPage(
                           ### Plot output rerata ----
                           plotOutput("plot_cakupan_rrt",
                                      height = "450px"),
-                          textOutput("teks_cakupan_rrt")
+                          fluidRow(
+                            column(8,
+                                   div(p(textOutput("teks_cakupan_rrt"),
+                                       align = "justify")),
+                                   div(p("Sebagai perbandingan, silakan cermati distribusi populasinya dan amati sebaran rerata sampel-sampelnya. Dalam distribusi populasi tersebut, rerata sampel direpresentasikan sebagai garis berwarna hijau dan oranye."))),
+                            column(4,
+                                   plotOutput("plot_dist_pop_rrt",
+                                              height = "200px"))
+                            )
                           )
                         )
                       ),
@@ -124,7 +139,7 @@ ui <- fluidPage(
                            div(p("Aplikasi interaktif ini dimaksudkan untuk mendemonstrasikan selang-selang kepercayaan proporsi dan rerata yang mencakup parameter populasinya. Beberapa ide penting statistik yang ditunjukkan oleh aplikasi ini antara lain sebagai berikut."), align = "justify"),
                            div(tags$ul(tags$li("Semakin besar tingkat kepercayaannya, semakin besar persentase selang kepercayaan yang mencakup parameter populasinya."),
                                        tags$li("Semakin besar tingkat kepercayaannya, pias galatnya juga semakin besar. Hal ini ditunjukkan dengan semakin panjangnya selang kepercayaannya."),
-                                       tags$li("Untuk rerata, ketika ukuran sampelnya kecil, metode yang menganggap sigma (simpangan baku populasi) tidak diketahui cenderung menghasilkan persentase pencakupan rerata populasi yang lebih tinggi.")), align = "justify"),
+                                       tags$li("Untuk rerata, ketika ukuran sampelnya kecil dan populasinya tidak berdistribusi normal, hubungan antara tingkat kepercayaan dan persentase pencakupan semakin tidak menentu.")), align = "justify"),
                            hr(),
                            div(p("Aplikasi interaktif ini dikembangkan dengan menggunakan bahasa pemrogram", a("R", href = "https://www.R-project.org/", target = "_blank"), "dan paket", a("Shiny.", href = "https://CRAN.R-project.org/package=shiny", target = "_blank"), "Paket", a("shinylive", href = "https://posit-dev.github.io/r-shinylive/", target = "_blank"), "digunakan untuk mengekspor aplikasi ini agar dapat dijalankan di peramban web tanpa peladen R yang terpisah."), align = "justify"),
                            div(p("Pengembang dan pemelihara aplikasi ini adalah", a("Yosep Dwi Kristanto,", href = "https://people.usd.ac.id/~ydkristanto/", target = "_blank"), "seorang dosen dan peneliti di program studi", a("Pendidikan Matematika,", href = "https://usd.ac.id/s1pmat", target = "_blank"), a("Universitas Sanata Dharma,", href = "https://www.usd.ac.id/", target = "_blank"), "Yogyakarta."), align = "justify"),
@@ -157,7 +172,7 @@ server <- function(input, output) {
   }
   rep_membuat_data <- repeatable(membuat_data)
   
-  # Plot cakupan selang kepercayaan
+  ### Plot cakupan selang kepercayaan ----
   output$plot_cakupan_prop <- renderPlot({
     data_sk <- rep_membuat_data(input$p_prop, input$n_prop,
                             input$k_prop, input$tingkat_keper_prop)
@@ -202,6 +217,47 @@ server <- function(input, output) {
     persen_mencakup <- mean(sapply(data_sk,
                                    function(sk) sk$mencakup_p)) * 100
     paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Persentase selang kepercayaan yang mencakup proporsi populasi: ", round(persen_mencakup, 2), "%", sep = "")
+  })
+  ### Plot distribusi populasi ----
+  output$plot_dist_pop_prop <- renderPlot({
+    data_sk <- rep_membuat_data(input$p_prop, input$n_prop,
+                                  input$k_prop, input$tingkat_keper_prop)
+    p <- input$p_prop
+    data_pop <- data.frame(
+      x = c(rep(1, p * 1000),
+            rep(0, (1 - p) * 1000))
+    )
+    ggplot() +
+      geom_segment(aes(x = 0, y = 0,
+                       xend = 0, yend = 1 - p),
+                   linewidth = 2) +
+      geom_segment(aes(x = 1, y = 0,
+                       xend = 1, yend = p),
+                   linewidth = 2) +
+      geom_point(aes(x = c(0, 1), y = c(1 - p, p)),
+                 size = 2) +
+      geom_segment(data = do.call(rbind, data_sk),
+                   aes(x = rerata, y = 0,
+                       xend = rerata, yend = Inf,
+                       color = factor(mencakup_p)),
+                   alpha = .5) +
+      geom_segment(aes(x = p, y = 0,
+                       xend = p, yend = Inf),
+                   linetype = "dashed",
+                   linewidth = 1) +
+      scale_x_continuous(breaks = c(0, 1),
+                         minor_breaks = NULL,
+                         limits = c(-.25, 1.25)) +
+      scale_color_manual(values = c("TRUE" = "#1b9e77",
+                                    "FALSE" = "#d95f02")) +
+      theme_bw() +
+      ylim(0, 1) +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank()) +
+      coord_flip() +
+      labs(title = "Distribusi populasi")
   })
   ## Fungsi untuk rerata ----
   ### Fungsi hasilkan data ----
@@ -335,7 +391,79 @@ server <- function(input, output) {
     persen_mencakup <- mean(sapply(data_sk,
                                    function(sk)
                                      sk$mencakup_rrt_populasi)) * 100
-    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Setiap sampel tersebut dipilih secara acak dari sebuah populasi yang berdistribusi ", dist_pop, " dengan rerata ", round(rrt_pop, 2), " dan simpangan baku ", round(sd_pop, 2), ". Persentase selang kepercayaan yang mencakup rerata populasi: ", round(persen_mencakup, 2), "%", sep = "")
+    paste("Gambar di atas memvisualisasikan ", k, " selang kepercayaan ", tingkat_keper, "% dari tiap-tiap sampel yang terpilih. Setiap sampel tersebut dipilih secara acak dari sebuah populasi yang berdistribusi ", dist_pop, " dengan rerata, mu = ", round(rrt_pop, 2), ", dan simpangan baku, sigma = ", round(sd_pop, 2), ". Persentase selang kepercayaan yang mencakup rerata populasi: ", round(persen_mencakup, 2), "%", sep = "")
+  })
+  ### Distribusi populasi ----
+  output$plot_dist_pop_rrt <- renderPlot({
+    data_sk <- rep_hasilkan_data(input$dist_pop_rrt, input$n_rrt, input$k_rrt,
+                                 input$tingkat_keper_rrt,
+                                 input$sigma_rrt)
+    dnorm2 <- function(x) {
+      2 / 5 * dnorm(x, mean = 400, sd = 50) + 3 / 5 * 
+        dnorm(x, mean = 600, sd = 50)}
+    if (input$dist_pop_rrt == "rnorm") {
+      fun_pop <- function(x) {
+        dnorm(x, mean = 500, sd = 100)
+      }
+      x_min <- 200
+      x_max <- 800
+      rrt_pop <- 500
+    } else if (input$dist_pop_rrt == "rlnorm") {
+      fun_pop <- function(x) {
+        dlnorm(x, meanlog = 6, sdlog = .3)
+      }
+      x_min <- 150
+      x_max <- 1200
+      rrt_pop <- exp(6 + (.3)^2 / 2)
+    } else if (input$dist_pop_rrt == "rbeta") {
+      fun_pop <- function(x) {
+        dbeta(x / 650, shape1 = 5, shape2 = 1.5) * 650
+      }
+      x_min <- 100
+      x_max <- 650
+      rrt_pop <- 5 / (5 + 1.5) * 650
+    } else if (input$dist_pop_rrt == "runif") {
+      fun_pop <- function(x) {
+        dunif(x, min = 300, max = 700)
+      }
+      x_min <- 153.6
+      x_max <- 846.4
+      rrt_pop <- 500
+    } else if (input$dist_pop_rrt == "rnorm2") {
+      fun_pop <- function(x) {
+        2 / 5 * dnorm(x, mean = 400, sd = 50) + 3 / 5 * 
+          dnorm(x, mean = 600, sd = 50)}
+      x_min <- 190
+      x_max <- 850
+      rrt_pop <- 2 / 5 * 400 + 3 / 5 * 600
+    }
+    ggplot() +
+      stat_function(fun = fun_pop,
+                    geom = "area",
+                    alpha = .2) +
+      geom_segment(data = do.call(rbind, data_sk),
+                 aes(x = rerata, y = 0,
+                     xend = rerata, yend = Inf,
+                     color = factor(mencakup_rrt_populasi)),
+                 alpha = .5) +
+      stat_function(fun = fun_pop,
+                    geom = "line") +
+      geom_segment(aes(x = rrt_pop, y = 0,
+                   xend = rrt_pop, yend = Inf),
+                   linetype = "dashed",
+                   show.legend = FALSE) +
+      scale_color_manual(values = c("TRUE" = "#1b9e77",
+                                    "FALSE" = "#d95f02")) +
+      xlim(x_min, x_max) +
+      coord_flip() +
+      theme_bw() +
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.title.y = element_blank(),
+            legend.position = "none") +
+      labs(y = "Nilai",
+           title = "Distribusi populasi")
   })
 }
 
